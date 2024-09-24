@@ -67,11 +67,44 @@ const App = () => {
   const addBlog = async (blogObject) => {
     try {
       blogFormRef.current.toggleVisibility()
-      blogService.create(blogObject).then((returnedBlog) => {
-        setBlogs(blogs.concat(returnedBlog))
-      })
-    } catch (exception) {
-      notify('Failed to create blog', 'error')
+      const returnedBlog = await blogService.create(blogObject)
+
+      const blogWithUser = {
+        ...returnedBlog,
+        user: {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+        },
+      }
+
+      setBlogs(blogs.concat(blogWithUser))
+      notify(
+        `A new blog '${returnedBlog.title}' by ${returnedBlog.author} added`
+      )
+    } catch (error) {
+      notify('Failed to add blog', 'error')
+    }
+  }
+
+  const updateBlog = (updatedBlog) => {
+    setBlogs(
+      blogs.map((blog) => (blog.id === updatedBlog.id ? updatedBlog : blog))
+    )
+  }
+
+  const removeBlog = async (blogToRemove) => {
+    try {
+      await blogService.remove(blogToRemove.id)
+      setBlogs(blogs.filter((blog) => blog.id !== blogToRemove.id))
+      notify(
+        `Blog '${blogToRemove.title}' by ${blogToRemove.author} was successfully removed`
+      )
+    } catch (error) {
+      notify(
+        `Failed to remove blog '${blogToRemove.title}'. ${error.response?.data?.error || 'Unknown error occurred.'}`,
+        'error'
+      )
     }
   }
 
@@ -116,9 +149,17 @@ const App = () => {
           <Togglable buttonLabel='new blog' ref={blogFormRef}>
             <BlogForm createBlog={addBlog} />
           </Togglable>
-          {blogs.map((blog) => (
-            <Blog key={blog.id} blog={blog} />
-          ))}
+          {blogs
+            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .map((blog) => (
+              <Blog
+                key={blog.id}
+                blog={blog}
+                updateBlog={updateBlog}
+                removeBlog={removeBlog}
+                user={user}
+              />
+            ))}
         </div>
       )}
     </div>
